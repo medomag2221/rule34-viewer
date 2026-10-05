@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" />
+    <meta name="theme-color" content="#171b18" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Rule34 Viewer</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="gallery.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./">Rule34 <b>Viewer</b></a
+      ><button
+        class="icon-button settings-button"
+        id="toggle-settings"
+        aria-haspopup="dialog"
+        aria-controls="settings"
+        aria-expanded="false"
+        aria-label="Настройки"
+      >
+        ⚙
+      </button>
+    </header>
+    <dialog id="settings" class="settings" aria-label="Настройки">
+      <div class="settings-head">
+        <div><small>RULE34 VIEWER</small><strong>Настройки</strong></div>
+        <button
+          class="icon-button"
+          id="close-settings"
+          aria-label="Закрыть настройки"
+        >
+          ×
+        </button>
+      </div>
+      <section class="setting-section">
+        <div class="section-title">
+          <span>Выдача</span><small>Вид галереи</small>
+        </div>
+        <label class="setting-row"
+          ><span>Постов на странице<small>От 10 до 100</small></span
+          ><input id="page-size" type="number" min="10" max="100" step="1"
+        /></label>
+      </section>
+      <section class="setting-section supertag-manager">
+        <div class="section-title">
+          <span>Супер-теги</span><small>Именованные поисковые наборы</small>
+        </div>
+        <p class="super-help">
+          В поиске набор добавляется одним чипом. Его теги раскрываются только
+          при загрузке публикаций.
+        </p>
+        <div id="settings-supertags" class="settings-supertags"></div>
+        <form id="supertag-form" class="supertag-form">
+          <input
+            id="supertag-name"
+            aria-label="Название набора"
+            placeholder="Название набора"
+            maxlength="40"
+            required
+          /><input
+            id="supertag-description"
+            aria-label="Описание набора"
+            placeholder="Описание (необязательно)"
+            maxlength="100"
+          /><label class="default-super"
+            ><input id="supertag-default" type="checkbox" /><span
+              >Добавлять при открытии новой вкладки</span
+            ></label
+          >
+          <div class="supertag-builder search-wrap">
+            <div class="builder-input">
+              <button
+                type="button"
+                id="supertag-mode"
+                aria-label="Исключать добавляемые теги"
+                aria-pressed="false"
+              >
+                +</button
+              ><input
+                id="supertag-tags"
+                aria-label="Теги набора"
+                placeholder="Поиск тегов"
+                autocomplete="off"
+                spellcheck="false"
+              /><button
+                type="button"
+                id="supertag-add-tag"
+                aria-label="Добавить тег"
+              >
+                →
+              </button>
+            </div>
+            <div id="super-suggestions" class="suggestions" hidden></div>
+          </div>
+          <div
+            id="supertag-selected"
+            class="active-tags supertag-selected"
+            aria-label="Теги набора"
+          ></div>
+          <button id="save-supertag">Сохранить супер-тег</button
+          ><button type="button" id="cancel-edit" class="secondary" hidden>
+            Отменить редактирование
+          </button>
+          <p id="builder-message" role="status"></p>
+        </form>
+      </section>
+      <p class="sync-note">
+        <b>Локальное хранение</b> · Облачная синхронизация будет доступна после
+        подключения аккаунта.
+      </p>
+    </dialog>
+    <section class="search-panel" aria-label="Поиск">
+      <div class="search-panel-body">
+        <div class="search-wrap">
+          <form id="search">
+            <button
+              type="button"
+              id="tag-mode"
+              aria-label="Исключать добавляемые теги"
+              aria-pressed="false"
+            >
+              +</button
+            ><input
+              id="tags"
+              aria-label="Добавить тег"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Поиск тегов"
+            /><button type="submit" aria-label="Добавить тег в список">
+              ➜
+            </button>
+          </form>
+          <div id="suggestions" class="suggestions" hidden></div>
+        </div>
+        <div
+          id="selected-tags"
+          class="active-tags"
+          aria-label="Выбранные теги"
+        ></div>
+        <div class="search-options">
+          <div class="rating-row">
+            <label class="rating-switch"
+              ><input
+                id="rating-enabled"
+                type="checkbox"
+                role="switch"
+                aria-label="Включить фильтр рейтинга" /><span></span></label
+            ><label for="filter-minLikes">Больше</label
+            ><input
+              id="filter-minLikes"
+              type="number"
+              min="0"
+              max="1000000"
+              step="1"
+              value="1"
+            /><span>рейтинга</span>
+          </div>
+          <div class="sort-row">
+            <label for="filter-sort">Сортировка:</label
+            ><select id="filter-sort">
+              <option value="id">По дате</option>
+              <option value="fav">По рейтингу</option>
+            </select>
+          </div>
+          <div id="popularity-options" hidden>
+            <label for="filter-period">Период популярности:</label>
+            <select id="filter-period">
+              <option value="1">Последние 7000 работ</option>
+              <option value="2">Последние 15000 работ</option>
+              <option value="0">За всё время</option>
+            </select>
+          </div>
+        </div>
+        <button type="button" id="run-search">⌕ Поиск</button
+        ><small id="filter-note"></small>
+      </div>
+    </section>
+    <main>
+      <div class="gallery-head">
+        <small id="status" role="status"><i></i>проверка сети</small
+        ><span id="page-label">Страница 1</span>
+      </div>
+      <section id="results" aria-live="polite"></section>
+      <div
+        id="loading"
+        class="loading"
+        role="status"
+        aria-label="Загрузка работ"
+        hidden
+      >
+        <i></i><i></i><i></i>
+      </div>
+      <nav class="pagination" aria-label="Страницы">
+        <button id="prev">← Назад</button><span id="page-number">1</span
+        ><button id="next">Вперёд →</button>
+      </nav>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
+

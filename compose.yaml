@@ -1,0 +1,12 @@
+services:
+  rule34-viewer:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8788:8082"
+    environment:
+      R34_PROXY_URL: ${R34_PROXY_URL:-https://rule34-api.netlify.app}
+      R34_API_KEY: ${R34_API_KEY:-}
+      R34_USER_ID: ${R34_USER_ID:-}
+      UPSTREAM_TIMEOUT_MS: ${UPSTREAM_TIMEOUT_MS:-15000}
+

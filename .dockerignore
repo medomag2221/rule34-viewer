@@ -1,0 +1,8 @@
+.git
+.research
+node_modules
+test
+docs
+BACKEND_HANDOFF.md
+*.log
+
