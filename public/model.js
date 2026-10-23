@@ -68,4 +68,3 @@ export function saveCollection(collections, value, editingId) {
       )
     : [...collections, value];
 }
-

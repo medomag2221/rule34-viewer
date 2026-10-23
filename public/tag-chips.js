@@ -64,4 +64,3 @@ export function createTagChips(input, onChange) {
   render()
   return render
 }
-

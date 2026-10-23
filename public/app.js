@@ -32,10 +32,34 @@ const savedState = readObject(
   "r34-viewer-preferences",
   "r34-viewer",
 );
-const tabState = readObject(sessionStorage, "r34-viewer-tab");
 const makeId = () =>
   globalThis.crypto?.randomUUID?.() ||
   `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const tabNamePrefix = "r34-viewer-tab:";
+const historyTabId = history.state?.r34ViewerTabId;
+const tabId =
+  typeof historyTabId === "string" && historyTabId.length > 0
+    ? historyTabId
+    : makeId();
+if (historyTabId !== tabId) {
+  try {
+    history.replaceState({ ...history.state, r34ViewerTabId: tabId }, "");
+  } catch {}
+}
+const tabStorageKey = `r34-viewer-tab-state:${tabId}`;
+const legacyLocalTabState = window.name.startsWith(tabNamePrefix)
+  ? readObject(
+      localStorage,
+      `r34-viewer-tab-state:${window.name.slice(tabNamePrefix.length)}`,
+    )
+  : {};
+const legacyTabState = readObject(sessionStorage, "r34-viewer-tab");
+const tabState = readObject(localStorage, tabStorageKey);
+const restoredTabState = Object.keys(tabState).length
+  ? tabState
+  : Object.keys(legacyLocalTabState).length
+    ? legacyLocalTabState
+    : legacyTabState;
 let anonymousUser = readObject(localStorage, "r34-viewer-anonymous-user");
 if (!anonymousUser.id) {
   anonymousUser = {
@@ -66,15 +90,17 @@ const defaultTokens = normalizedSupertags
   .filter((item) => item.default)
   .map((item) => superToken(item.id));
 const initialTags =
-  typeof tabState.tags === "string" ? tabState.tags : defaultTokens.join(", ");
+  typeof restoredTabState.tags === "string"
+    ? restoredTabState.tags
+    : defaultTokens.join(", ");
 const state = {
   appliedTags:
-    typeof tabState.appliedTags === "string"
-      ? tabState.appliedTags
+    typeof restoredTabState.appliedTags === "string"
+      ? restoredTabState.appliedTags
       : initialTags,
   page:
-    Number.isInteger(tabState.page) && tabState.page >= 0
-      ? Math.min(tabState.page, 10000)
+    Number.isInteger(restoredTabState.page) && restoredTabState.page >= 0
+      ? Math.min(restoredTabState.page, 10000)
       : 0,
   pageSize: pageSize(savedState.pageSize),
   tags: initialTags,
@@ -84,12 +110,13 @@ const state = {
 };
 function persist() {
   try {
-    sessionStorage.setItem(
-      "r34-viewer-tab",
+    localStorage.setItem(
+      tabStorageKey,
       JSON.stringify({
         page: state.page,
         appliedTags: state.appliedTags,
         tags: state.tags,
+        filters,
       }),
     );
     localStorage.setItem(
@@ -139,18 +166,36 @@ function syncVideoControls() {
   for (const video of elements.results.querySelectorAll(
     ".video-player video",
   )) {
-    const button = video
-      .closest(".video-player")
-      .querySelector("[data-video-toggle]");
+    const player = video.closest(".video-player");
+    const button = player.querySelector("[data-video-toggle]");
+    const progress = player.querySelector("[data-video-progress]");
+    const time = player.querySelector("[data-video-time]");
+    const formatTime = (seconds) => {
+      if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+      const minutes = Math.floor(seconds / 60);
+      return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+    };
     const update = () => {
       const playing = !video.paused && !video.ended;
       button.innerHTML = icon(playing ? "pause" : "play");
       button.setAttribute("aria-label", playing ? "Пауза" : "Воспроизвести");
       button.title = playing ? "Пауза" : "Воспроизвести";
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      progress.value = duration
+        ? String(Math.round((video.currentTime / duration) * 1000))
+        : "0";
+      progress.style.setProperty("--progress", `${(Number(progress.value) / 10).toFixed(2)}%`);
+      time.textContent = `${formatTime(video.currentTime)} / ${formatTime(duration)}`;
     };
-    video.addEventListener("play", update);
-    video.addEventListener("pause", update);
-    video.addEventListener("ended", update);
+    ["play", "pause", "ended", "loadedmetadata", "durationchange", "timeupdate"].forEach(
+      (event) => video.addEventListener(event, update),
+    );
+    progress.addEventListener("input", () => {
+      if (Number.isFinite(video.duration)) {
+        video.currentTime = (Number(progress.value) / 1000) * video.duration;
+        update();
+      }
+    });
     update();
   }
 }
@@ -204,7 +249,10 @@ async function loadPage() {
     }
   }
 }
-const storedFilters = readObject(sessionStorage, "r34-viewer-filters");
+const storedFilters =
+  restoredTabState.filters && typeof restoredTabState.filters === "object"
+    ? restoredTabState.filters
+    : readObject(sessionStorage, "r34-viewer-filters");
 const filters = {
   sort: storedFilters.sort === "fav" ? "fav" : "id",
   period: ["0", "1", "2"].includes(storedFilters.period)
@@ -229,9 +277,6 @@ $("#run-search").addEventListener("click", () => {
   for (const key of Object.keys(filters))
     filters[key] = $(`#filter-${key}`).value;
   if (!$("#rating-enabled").checked) filters.minLikes = "";
-  try {
-    sessionStorage.setItem("r34-viewer-filters", JSON.stringify(filters));
-  } catch {}
   setTags(splitTags(), true);
 });
 $("#filter-sort").addEventListener("change", () => {
@@ -327,6 +372,7 @@ elements.results.addEventListener("click", (event) => {
     else video.pause();
     return;
   }
+  if (event.target.closest(".video-controls")) return;
   const media = event.target.closest("article .post-media");
   if (!media) return;
   const open = media.closest("article").classList.toggle("tags-open");
@@ -559,4 +605,3 @@ fetch("api/health")
     elements.status.innerHTML = "<i></i>сеть недоступна";
     elements.status.className = "bad";
   });
-

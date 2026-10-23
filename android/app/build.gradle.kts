@@ -23,8 +23,13 @@ android {
   kotlinOptions {
     jvmTarget = "17"
   }
+
+  sourceSets {
+    getByName("main").assets.srcDir("../../public")
+  }
 }
 
 dependencies {
   implementation("androidx.activity:activity-ktx:1.10.1")
+  implementation("androidx.webkit:webkit:1.12.1")
 }

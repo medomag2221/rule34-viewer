@@ -5,8 +5,7 @@
     <application
         android:allowBackup="false"
         android:label="Rule34 Viewer"
-        android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true">
+        android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboardHidden|orientation|screenSize"

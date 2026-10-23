@@ -38,4 +38,3 @@ export function masonry(container) {
   container.addEventListener('load', layout, true)
   watch()
 }
-

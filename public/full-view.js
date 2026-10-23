@@ -43,4 +43,3 @@ export function initFullView(container) {
   if (/^#post=/.test(location.hash)) { const hash = location.hash; history.replaceState(null, '', location.pathname + location.search); history.pushState(null, '', hash) }
   sync()
 }
-

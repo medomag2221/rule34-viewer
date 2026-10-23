@@ -50,7 +50,7 @@ function media(post) {
   const shape = ratio > 1.45 ? "wide" : ratio < 0.72 ? "tall" : "square";
   const content =
     post.type === "video"
-      ? `<div class="post-media video-player"><video preload="metadata" playsinline poster="${preview}" src="${playback}"></video><button class="video-toggle" type="button" data-video-toggle aria-label="Воспроизвести" title="Воспроизвести">${icon("play")}</button></div>`
+      ? `<div class="post-media video-player"><video preload="metadata" playsinline poster="${preview}" src="${playback}"></video><div class="video-controls"><button class="video-toggle" type="button" data-video-toggle aria-label="Воспроизвести" title="Воспроизвести">${icon("play")}</button><input class="video-progress" type="range" min="0" max="1000" value="0" step="1" data-video-progress aria-label="Позиция видео"><time data-video-time>0:00 / 0:00</time></div></div>`
       : `<div class="post-media image-player" role="button" tabindex="0" aria-label="Показать теги работы" aria-expanded="false"><img loading="lazy" width="${Number(post.width) || 1}" height="${Number(post.height) || 1}" src="${preview}" alt="${escapeHtml(post.tags.slice(0, 5).join(", "))}"></div>`;
   return { content, shape, playback, download };
 }
@@ -68,6 +68,5 @@ export function card(post) {
         `<button type="button" data-tag="${encodeURIComponent(tag)}" title="Нажать: добавить/убрать · Удержать: исключить"><span class="tag-sign">${icon("plus")}</span>${escapeHtml(tag)}</button>`,
     )
     .join("");
-  return `<article class="${shape}"><div class="post-visual">${content}<div class="post-actions"><span class="post-score" title="Рейтинг Rule34">${icon("heart")}<b>${Number.isFinite(post.score) ? post.score : "—"}</b></span><a href="${playback}" target="_blank" rel="noopener" title="Открыть оригинал в новой вкладке" aria-label="Открыть оригинал в новой вкладке">${icon("external")}</a><a href="${download}" title="Скачать оригинал" aria-label="Скачать оригинал">${icon("download")}</a></div></div><div class="post-tags"><div class="tag-panel-heading">Теги работы <small>Нажать: выбрать · Удержать: исключить</small></div>${tags}</div></article>`;
+  return `<article class="${shape}"><div class="post-visual">${content}<span class="post-score" title="Рейтинг Rule34">${icon("heart")}<b>${Number.isFinite(post.score) ? post.score : "—"}</b></span><div class="post-actions"><a href="${playback}" target="_blank" rel="noopener" title="Открыть оригинал в новой вкладке" aria-label="Открыть оригинал в новой вкладке">${icon("external")}</a><a href="${download}" title="Скачать оригинал" aria-label="Скачать оригинал">${icon("download")}</a></div></div><div class="post-tags"><div class="tag-panel-heading">Теги работы <small>Нажать: выбрать · Удержать: исключить</small></div>${tags}</div></article>`;
 }
-

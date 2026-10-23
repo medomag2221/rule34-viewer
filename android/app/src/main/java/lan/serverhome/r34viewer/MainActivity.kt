@@ -12,9 +12,13 @@ import android.webkit.DownloadListener
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : Activity() {
   private lateinit var browser: WebView
+  private val assets = WebViewAssetLoader.Builder()
+    .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+    .build()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -32,13 +36,18 @@ class MainActivity : Activity() {
       webViewClient = object : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
           val url = request.url
-          if (url.host == "server-home.lan") return false
+          if (url.host == APP_HOST) return false
           startActivity(Intent(Intent.ACTION_VIEW, url))
           return true
         }
+
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest) =
+          Rule34Api.intercept(request) ?: assets.shouldInterceptRequest(request.url)
       }
       setDownloadListener(DownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
-        val request = DownloadManager.Request(Uri.parse(url)).apply {
+        val source = Uri.parse(url).getQueryParameter("url")
+        if (!Rule34Api.isAllowedMedia(source)) return@DownloadListener
+        val request = DownloadManager.Request(Uri.parse(source!!)).apply {
           setTitle("Rule34 Viewer")
           setDescription("Скачивание оригинала")
           setMimeType(mimeType)
@@ -48,7 +57,7 @@ class MainActivity : Activity() {
         }
         (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
       })
-      if (savedInstanceState == null) loadUrl(SERVICE_URL) else restoreState(savedInstanceState)
+      if (savedInstanceState == null) loadUrl(APP_URL) else restoreState(savedInstanceState)
     }
     setContentView(browser)
   }
@@ -64,6 +73,7 @@ class MainActivity : Activity() {
   }
 
   companion object {
-    private const val SERVICE_URL = "http://server-home.lan/r34viewer/"
+    private const val APP_HOST = "appassets.androidplatform.net"
+    private const val APP_URL = "https://appassets.androidplatform.net/assets/index.html?native=1"
   }
 }

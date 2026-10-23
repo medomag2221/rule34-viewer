@@ -130,4 +130,3 @@ export function attachAutocomplete(input, list, options = {}) {
     }
   });
 }
-

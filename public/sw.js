@@ -1,4 +1,4 @@
-const CACHE = 'r34-shell-v16'
+const CACHE = 'r34-shell-v24'
 const FILES = ['./', 'styles.css', 'gallery.css', 'app.js', 'cards.js', 'model.js', 'autocomplete.js', 'tag-chips.js', 'masonry.js', 'full-view.js', 'pwa.js', 'icon.svg', 'manifest.webmanifest']
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES.map(file => new URL(file, self.registration.scope).href)))) })
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => /^(zerochan|r34)-shell-/.test(key) && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())) })
@@ -10,4 +10,3 @@ self.addEventListener('fetch', event => {
     return response
   }).catch(() => caches.match(event.request)))
 })
-
