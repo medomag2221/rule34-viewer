@@ -4,8 +4,12 @@ import android.app.Activity
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.view.WindowInsets
+import android.widget.FrameLayout
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
@@ -59,7 +63,28 @@ class MainActivity : Activity() {
       })
       if (savedInstanceState == null) loadUrl(APP_URL) else restoreState(savedInstanceState)
     }
-    setContentView(browser)
+
+    val content = FrameLayout(this).apply {
+      setBackgroundColor(Color.rgb(16, 18, 18))
+      addView(browser, FrameLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.MATCH_PARENT,
+      ))
+    }
+    setContentView(content)
+
+    // Android 15 enforces edge-to-edge layouts for apps targeting API 35.
+    // Keep system UI in the root container and lay the WebView out inside the safe area.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+      content.setOnApplyWindowInsetsListener { _, insets ->
+        val bars = insets.getInsets(WindowInsets.Type.systemBars())
+        val params = browser.layoutParams as FrameLayout.LayoutParams
+        params.setMargins(bars.left, bars.top, bars.right, bars.bottom)
+        browser.layoutParams = params
+        insets
+      }
+      content.post { content.requestApplyInsets() }
+    }
   }
 
   override fun onSaveInstanceState(outState: Bundle) {
@@ -77,3 +102,4 @@ class MainActivity : Activity() {
     private const val APP_URL = "https://appassets.androidplatform.net/assets/index.html?native=1"
   }
 }
+

@@ -9,7 +9,7 @@ import java.net.URL
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Direct, keyless Rule34 client used only by the mobile app. */
+/** Direct Rule34 client used only by the mobile app. */
 object Rule34Api {
   private const val APP_HOST = "appassets.androidplatform.net"
   private const val USER_AGENT = "Rule34ViewerAndroid/1.0"
@@ -46,16 +46,12 @@ object Rule34Api {
       .map { it.trim().replace(' ', '_').lowercase() }.filter { it.isNotEmpty() }.toMutableList()
     if (minimum != null) terms += "score:>$minimum"
     if (query.getQueryParameter("sort") == "fav") terms += "sort:score:desc"
-    val api = Uri.parse("https://api.rule34.xxx/index.php").buildUpon()
-      .appendQueryParameter("page", "dapi")
-      .appendQueryParameter("s", "post")
-      .appendQueryParameter("q", "index")
-      .appendQueryParameter("json", "1")
-      .appendQueryParameter("limit", limit.toString())
-      .appendQueryParameter("pid", page.toString())
-      .appendQueryParameter("tags", terms.joinToString(" "))
-      .build().toString()
-    val source = JSONArray(readText(api))
+    val hasCredentials = BuildConfig.R34_API_KEY.isNotBlank() && BuildConfig.R34_USER_ID.isNotBlank()
+    val source: JSONArray = (readPosts(buildPostUrl(limit, page, terms, hasCredentials))
+      // Keep a public request as a future-compatible fallback. It is useful if the API relaxes
+      // authentication again, but current Rule34 deployments still require credentials.
+      ?: if (hasCredentials) readPosts(buildPostUrl(limit, page, terms, false)) else null)
+      ?: throw IllegalStateException("Rule34 не принял API-ключ. Создайте новый ключ в Account → Options → API Access Credentials и пересоберите APK.")
     val normalized = JSONArray()
     for (index in 0 until source.length()) {
       val post = source.optJSONObject(index) ?: continue
@@ -80,6 +76,27 @@ object Rule34Api {
       put("page", page); put("limit", limit); put("source", "rule34-direct-mobile")
       put("hasMore", source.length() == limit); put("scanned", source.length()); put("posts", normalized)
     }
+  }
+
+  private fun buildPostUrl(limit: Int, page: Int, terms: List<String>, withCredentials: Boolean): String = Uri.parse("https://api.rule34.xxx/index.php").buildUpon()
+      .appendQueryParameter("page", "dapi")
+      .appendQueryParameter("s", "post")
+      .appendQueryParameter("q", "index")
+      .appendQueryParameter("json", "1")
+      .appendQueryParameter("limit", limit.toString())
+      .appendQueryParameter("pid", page.toString())
+      .appendQueryParameter("tags", terms.joinToString(" "))
+      .apply {
+        if (withCredentials) {
+          appendQueryParameter("api_key", BuildConfig.R34_API_KEY)
+          appendQueryParameter("user_id", BuildConfig.R34_USER_ID)
+        }
+      }.build().toString()
+
+  private fun readPosts(url: String): JSONArray? = try {
+    JSONArray(readText(url))
+  } catch (_: Exception) {
+    null
   }
 
   private fun tags(query: Uri): JSONObject {
@@ -128,3 +145,4 @@ object Rule34Api {
     ByteArrayInputStream(body.toString().toByteArray()),
   )
 }
+
