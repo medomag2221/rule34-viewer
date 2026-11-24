@@ -9,10 +9,10 @@ val localProperties = Properties().apply {
   val file = rootProject.file("local.properties")
   if (file.exists()) file.inputStream().use(::load)
 }
-val rule34ApiKey = providers.gradleProperty("r34ApiKey")
-  .orElse(localProperties.getProperty("r34ApiKey") ?: "").get()
-val rule34UserId = providers.gradleProperty("r34UserId")
-  .orElse(localProperties.getProperty("r34UserId") ?: "").get()
+val signingStore = localProperties.getProperty("r34SigningStore").orEmpty()
+val signingStorePassword = localProperties.getProperty("r34SigningStorePassword").orEmpty()
+val signingKeyAlias = localProperties.getProperty("r34SigningKeyAlias").orEmpty()
+val signingKeyPassword = localProperties.getProperty("r34SigningKeyPassword").orEmpty()
 
 android {
   namespace = "lan.serverhome.r34viewer"
@@ -22,13 +22,28 @@ android {
     applicationId = "lan.serverhome.r34viewer"
     minSdk = 26
     targetSdk = 35
-    versionCode = 3
-    versionName = "1.0.2"
-    buildConfigField("String", "R34_API_KEY", "\"$rule34ApiKey\"")
-    buildConfigField("String", "R34_USER_ID", "\"$rule34UserId\"")
+    versionCode = 13
+    versionName = "1.1.2"
   }
 
-  buildFeatures { buildConfig = true }
+  signingConfigs {
+    if (signingStore.isNotBlank() && signingStorePassword.isNotBlank() &&
+      signingKeyAlias.isNotBlank() && signingKeyPassword.isNotBlank()) {
+      create("personalRelease") {
+        storeFile = rootProject.file(signingStore)
+        storePassword = signingStorePassword
+        keyAlias = signingKeyAlias
+        keyPassword = signingKeyPassword
+      }
+    }
+  }
+
+  buildTypes {
+    getByName("release") {
+      isMinifyEnabled = false
+      signingConfigs.findByName("personalRelease")?.let { signingConfig = it }
+    }
+  }
 
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -48,4 +63,3 @@ dependencies {
   implementation("androidx.activity:activity-ktx:1.10.1")
   implementation("androidx.webkit:webkit:1.12.1")
 }
-

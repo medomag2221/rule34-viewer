@@ -2,7 +2,9 @@
 .env
 android/local.properties
 android/Dockerfile.private-build
+android/private/
+artifacts/
+.vs/
 node_modules/
 coverage/
 *.log
-

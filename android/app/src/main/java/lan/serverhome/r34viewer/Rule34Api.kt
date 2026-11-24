@@ -16,6 +16,14 @@ object Rule34Api {
   private val mediaHosts = setOf(
     "api-cdn.rule34.xxx", "api-cdn-mp4.rule34.xxx", "rule34.xxx", "www.rule34.xxx",
   )
+  private data class Credentials(val apiKey: String, val userId: String)
+  @Volatile private var credentials: Credentials? = null
+
+  fun configureCredentials(apiKey: String, userId: String) {
+    val key = apiKey.trim()
+    val id = userId.trim()
+    credentials = if (key.isNotBlank() && id.isNotBlank()) Credentials(key, id) else null
+  }
 
   fun intercept(request: WebResourceRequest): WebResourceResponse? {
     val uri = request.url
@@ -46,12 +54,15 @@ object Rule34Api {
       .map { it.trim().replace(' ', '_').lowercase() }.filter { it.isNotEmpty() }.toMutableList()
     if (minimum != null) terms += "score:>$minimum"
     if (query.getQueryParameter("sort") == "fav") terms += "sort:score:desc"
-    val hasCredentials = BuildConfig.R34_API_KEY.isNotBlank() && BuildConfig.R34_USER_ID.isNotBlank()
-    val source: JSONArray = (readPosts(buildPostUrl(limit, page, terms, hasCredentials))
-      // Keep a public request as a future-compatible fallback. It is useful if the API relaxes
-      // authentication again, but current Rule34 deployments still require credentials.
-      ?: if (hasCredentials) readPosts(buildPostUrl(limit, page, terms, false)) else null)
-      ?: throw IllegalStateException("Rule34 не принял API-ключ. Создайте новый ключ в Account → Options → API Access Credentials и пересоберите APK.")
+    val activeCredentials = credentials
+      ?: throw IllegalStateException("Укажите API-ключ и ID пользователя в настройках приложения.")
+    val source: JSONArray = try {
+      readPosts(buildPostUrl(limit, page, terms, activeCredentials))
+    } catch (error: Exception) {
+      throw IllegalStateException(
+        "Не удалось подключиться к Rule34: ${error.message ?: "ошибка сети"}",
+      )
+    }
     val normalized = JSONArray()
     for (index in 0 until source.length()) {
       val post = source.optJSONObject(index) ?: continue
@@ -78,7 +89,7 @@ object Rule34Api {
     }
   }
 
-  private fun buildPostUrl(limit: Int, page: Int, terms: List<String>, withCredentials: Boolean): String = Uri.parse("https://api.rule34.xxx/index.php").buildUpon()
+  private fun buildPostUrl(limit: Int, page: Int, terms: List<String>, credentials: Credentials): String = Uri.parse("https://api.rule34.xxx/index.php").buildUpon()
       .appendQueryParameter("page", "dapi")
       .appendQueryParameter("s", "post")
       .appendQueryParameter("q", "index")
@@ -86,18 +97,11 @@ object Rule34Api {
       .appendQueryParameter("limit", limit.toString())
       .appendQueryParameter("pid", page.toString())
       .appendQueryParameter("tags", terms.joinToString(" "))
-      .apply {
-        if (withCredentials) {
-          appendQueryParameter("api_key", BuildConfig.R34_API_KEY)
-          appendQueryParameter("user_id", BuildConfig.R34_USER_ID)
-        }
-      }.build().toString()
+      .appendQueryParameter("api_key", credentials.apiKey)
+      .appendQueryParameter("user_id", credentials.userId)
+      .build().toString()
 
-  private fun readPosts(url: String): JSONArray? = try {
-    JSONArray(readText(url))
-  } catch (_: Exception) {
-    null
-  }
+  private fun readPosts(url: String): JSONArray = JSONArray(readText(url))
 
   private fun tags(query: Uri): JSONObject {
     val q = query.getQueryParameter("q").orEmpty().trim().take(120)
@@ -121,8 +125,7 @@ object Rule34Api {
   private fun media(uri: Uri, range: String?): WebResourceResponse {
     val source = uri.getQueryParameter("url")
     require(isAllowedMedia(source)) { "Unsupported media address" }
-    val connection = open(source!!)
-    if (!range.isNullOrBlank()) connection.setRequestProperty("Range", range)
+    val connection = open(source!!, range)
     val code = connection.responseCode
     if (code !in listOf(200, 206)) throw IllegalStateException("Media returned HTTP $code")
     val headers = mutableMapOf<String, String>()
@@ -136,13 +139,19 @@ object Rule34Api {
   }
 
   private fun readText(value: String): String = open(value).inputStream.bufferedReader().use { it.readText() }
-  private fun open(value: String): HttpURLConnection = (URL(value).openConnection() as HttpURLConnection).apply {
+  private fun open(value: String, range: String? = null): HttpURLConnection = (URL(value).openConnection() as HttpURLConnection).apply {
     connectTimeout = 15_000; readTimeout = 30_000; instanceFollowRedirects = true
     setRequestProperty("User-Agent", USER_AGENT); setRequestProperty("Accept-Encoding", "identity")
+    if (!range.isNullOrBlank()) setRequestProperty("Range", range)
+    val status = responseCode
+    if (status !in 200..299) {
+      errorStream?.close()
+      disconnect()
+      throw IllegalStateException("Rule34 вернул HTTP $status")
+    }
   }
   private fun json(body: JSONObject, status: Int = 200, reason: String = "OK") = WebResourceResponse(
     "application/json", "utf-8", status, reason, mapOf("Cache-Control" to "no-store"),
     ByteArrayInputStream(body.toString().toByteArray()),
   )
 }
-

@@ -1,5 +1,4 @@
 import { card, icon, escapeHtml } from "./cards.js";
-import "./pwa.js";
 import {
   normalizeTags,
   splitTags as parseTags,
@@ -27,58 +26,20 @@ const elements = {
   settingsSupertags: $("#settings-supertags"),
   status: $("#status"),
 };
-const savedState = readObject(
+const legacyState = readObject(
   localStorage,
+  "r34-viewer-state",
   "r34-viewer-preferences",
-  "r34-viewer",
 );
+const savedState = {
+  ...legacyState,
+  ...readObject(localStorage, "r34-viewer-state-v2"),
+};
 const makeId = () =>
   globalThis.crypto?.randomUUID?.() ||
   `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const tabNamePrefix = "r34-viewer-tab:";
-const historyTabId = history.state?.r34ViewerTabId;
-const tabId =
-  typeof historyTabId === "string" && historyTabId.length > 0
-    ? historyTabId
-    : makeId();
-if (historyTabId !== tabId) {
-  try {
-    history.replaceState({ ...history.state, r34ViewerTabId: tabId }, "");
-  } catch {}
-}
-const tabStorageKey = `r34-viewer-tab-state:${tabId}`;
-const legacyLocalTabState = window.name.startsWith(tabNamePrefix)
-  ? readObject(
-      localStorage,
-      `r34-viewer-tab-state:${window.name.slice(tabNamePrefix.length)}`,
-    )
-  : {};
-const legacyTabState = readObject(sessionStorage, "r34-viewer-tab");
-const tabState = readObject(localStorage, tabStorageKey);
-const restoredTabState = Object.keys(tabState).length
-  ? tabState
-  : Object.keys(legacyLocalTabState).length
-    ? legacyLocalTabState
-    : legacyTabState;
-let anonymousUser = readObject(localStorage, "r34-viewer-anonymous-user");
-if (!anonymousUser.id) {
-  anonymousUser = {
-    id: makeId(),
-    type: "anonymous",
-    createdAt: new Date().toISOString(),
-  };
-  try {
-    localStorage.setItem(
-      "r34-viewer-anonymous-user",
-      JSON.stringify(anonymousUser),
-    );
-  } catch {}
-}
 masonry(elements.results);
-const normalizedSupertags = normalizeCollections(
-  savedState.supertags,
-  anonymousUser.id,
-);
+const normalizedSupertags = normalizeCollections(savedState.supertags);
 const superToken = (id) => `@super:${id}`;
 const superByToken = (token) =>
   token.replace(/^-/, "").startsWith("@super:")
@@ -86,44 +47,32 @@ const superByToken = (token) =>
         (item) => item.id === token.replace(/^-/, "").slice(7),
       )
     : null;
-const defaultTokens = normalizedSupertags
-  .filter((item) => item.default)
-  .map((item) => superToken(item.id));
 const initialTags =
-  typeof restoredTabState.tags === "string"
-    ? restoredTabState.tags
-    : defaultTokens.join(", ");
+  typeof savedState.tags === "string" ? savedState.tags : "";
 const state = {
   appliedTags:
-    typeof restoredTabState.appliedTags === "string"
-      ? restoredTabState.appliedTags
+    typeof savedState.appliedTags === "string"
+      ? savedState.appliedTags
       : initialTags,
   page:
-    Number.isInteger(restoredTabState.page) && restoredTabState.page >= 0
-      ? Math.min(restoredTabState.page, 10000)
+    Number.isInteger(savedState.page) && savedState.page >= 0
+      ? Math.min(savedState.page, 10000)
       : 0,
   pageSize: pageSize(savedState.pageSize),
   tags: initialTags,
-  savedTags: Array.isArray(savedState.savedTags) ? savedState.savedTags : [],
   supertags: normalizedSupertags,
   request: null,
 };
 function persist() {
   try {
     localStorage.setItem(
-      tabStorageKey,
+      "r34-viewer-state-v2",
       JSON.stringify({
         page: state.page,
         appliedTags: state.appliedTags,
         tags: state.tags,
         filters,
-      }),
-    );
-    localStorage.setItem(
-      "r34-viewer-preferences",
-      JSON.stringify({
         pageSize: state.pageSize,
-        savedTags: state.savedTags,
         supertags: state.supertags,
       }),
     );
@@ -223,9 +172,9 @@ async function loadPage() {
     const data = await response.json();
     if (request !== state.request) return;
     if (!response.ok)
-      throw new Error(data.error || "Сервер не ответил. Попробуйте ещё раз.");
+      throw new Error(data.error || "Источник не ответил. Попробуйте ещё раз.");
     if (!Array.isArray(data.posts))
-      throw new Error("Некорректный ответ сервера");
+      throw new Error("Некорректный ответ источника");
     elements.results.innerHTML =
       data.posts.map(card).join("") ||
       '<p class="empty">На этой странице нет подходящих работ. Попробуйте следующую страницу или измените фильтр.</p>';
@@ -250,9 +199,9 @@ async function loadPage() {
   }
 }
 const storedFilters =
-  restoredTabState.filters && typeof restoredTabState.filters === "object"
-    ? restoredTabState.filters
-    : readObject(sessionStorage, "r34-viewer-filters");
+  savedState.filters && typeof savedState.filters === "object"
+    ? savedState.filters
+    : {};
 const filters = {
   sort: storedFilters.sort === "fav" ? "fav" : "id",
   period: ["0", "1", "2"].includes(storedFilters.period)
@@ -467,7 +416,7 @@ function renderCollections() {
     ? state.supertags
         .map(
           (item) =>
-            `<article><button type="button" class="super-main" data-edit-super="${escapeHtml(item.id)}"><span class="super-icon">${icon("tag")}</span><span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.description || `${item.tags.length} тегов`)}${item.default ? " · по умолчанию" : ""}</small></span></button><span class="super-count">${item.tags.length}</span><button type="button" class="super-delete" data-remove-super="${escapeHtml(item.id)}" title="Удалить">×</button></article>`,
+            `<article><button type="button" class="super-main" data-edit-super="${escapeHtml(item.id)}"><span class="super-icon">${icon("tag")}</span><span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.description || `${item.tags.length} тегов`)}</small></span></button><span class="super-count">${item.tags.length}</span><button type="button" class="super-delete" data-remove-super="${escapeHtml(item.id)}" title="Удалить">×</button></article>`,
         )
         .join("")
     : '<p class="no-super">Пока пусто. Создайте первый набор ниже.</p>';
@@ -497,6 +446,23 @@ elements.settings.addEventListener("click", (event) => {
       closeSettings();
   }
 });
+$("#api-credentials-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const key = $("#api-key").value.trim();
+  const userId = $("#api-user-id").value.trim();
+  const message = $("#api-credentials-message");
+  if (!key || !userId) {
+    message.textContent = "Укажите ключ и ID пользователя.";
+    return;
+  }
+  if (typeof globalThis.Android?.saveCredentials !== "function") {
+    message.textContent = "Сохранение ключа доступно только в Android-приложении.";
+    return;
+  }
+  globalThis.Android.saveCredentials(key, userId);
+  $("#api-key").value = "";
+  message.textContent = "Ключ сохранён в приложении и будет использоваться для новых запросов.";
+});
 function resetBuilder() {
   builder.editingId = null;
   builder.tags = [];
@@ -516,7 +482,6 @@ function editSupertag(item) {
   builder.tags = [...item.tags];
   $("#supertag-name").value = item.name;
   $("#supertag-description").value = item.description;
-  $("#supertag-default").checked = item.default;
   $("#save-supertag").textContent = "Сохранить изменения";
   renderBuilderTags();
   $("#supertag-name").focus();
@@ -564,10 +529,8 @@ $("#supertag-form").addEventListener("submit", (event) => {
   const id = builder.editingId || `set-${makeId()}`;
   const value = {
     id,
-    ownerId: anonymousUser.id,
     name,
     description,
-    default: $("#supertag-default").checked,
     tags: [...builder.tags],
   };
   try {

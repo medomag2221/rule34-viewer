@@ -4,8 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="icon.svg" />
     <meta name="theme-color" content="#171b18" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Rule34 Viewer</title>
@@ -14,8 +12,8 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="./">Rule34 <b>Viewer</b></a
-      ><button
+      <div class="brand">Rule34 <b>Viewer</b></div>
+      <button
         class="icon-button settings-button"
         id="toggle-settings"
         aria-haspopup="dialog"
@@ -46,6 +44,32 @@
           ><input id="page-size" type="number" min="10" max="100" step="1"
         /></label>
       </section>
+      <section class="setting-section">
+        <div class="section-title">
+          <span>Rule34 API</span><small>Личный доступ</small>
+        </div>
+        <form id="api-credentials-form" class="supertag-form">
+          <input
+            id="api-key"
+            type="password"
+            aria-label="API-ключ Rule34"
+            placeholder="API-ключ"
+            autocomplete="off"
+            spellcheck="false"
+            required
+          />
+          <input
+            id="api-user-id"
+            inputmode="numeric"
+            aria-label="ID пользователя Rule34"
+            placeholder="ID пользователя"
+            autocomplete="off"
+            required
+          />
+          <button type="submit">Сохранить ключ</button>
+          <p id="api-credentials-message" role="status"></p>
+        </form>
+      </section>
       <section class="setting-section supertag-manager">
         <div class="section-title">
           <span>Супер-теги</span><small>Именованные поисковые наборы</small>
@@ -67,11 +91,7 @@
             aria-label="Описание набора"
             placeholder="Описание (необязательно)"
             maxlength="100"
-          /><label class="default-super"
-            ><input id="supertag-default" type="checkbox" /><span
-              >Добавлять при открытии новой вкладки</span
-            ></label
-          >
+          />
           <div class="supertag-builder search-wrap">
             <div class="builder-input">
               <button
@@ -110,8 +130,8 @@
         </form>
       </section>
       <p class="sync-note">
-        <b>Локальное хранение</b> · Облачная синхронизация будет доступна после
-        подключения аккаунта.
+        Настройки, активный поиск и супер-теги хранятся только на этом
+        устройстве.
       </p>
     </dialog>
     <section class="search-panel" aria-label="Поиск">

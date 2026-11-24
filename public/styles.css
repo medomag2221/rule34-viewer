@@ -498,19 +498,6 @@ body:has(.settings[open]) {
 .supertag-form > input {
   width: 100%;
 }
-.default-super {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--muted);
-  margin: 4px 0;
-}
-.default-super input {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
-}
 #save-supertag {
   background: var(--accent);
   color: #172014;

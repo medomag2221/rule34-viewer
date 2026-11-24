@@ -30,7 +30,7 @@ export function readObject(storage, key, fallbackKey) {
     return {};
   }
 }
-export function normalizeCollections(values, ownerId) {
+export function normalizeCollections(values) {
   if (!Array.isArray(values)) return [];
   const ids = new Set();
   return values
@@ -47,10 +47,8 @@ export function normalizeCollections(values, ownerId) {
           );
       return {
         id,
-        ownerId: item.ownerId || ownerId,
         name: String(item.name || "Без названия"),
         description: String(item.description || ""),
-        default: Boolean(item.default),
         tags: normalizeTags(tags),
       };
     });
