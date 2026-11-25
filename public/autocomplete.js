@@ -18,32 +18,15 @@ export function attachAutocomplete(input, list, options = {}) {
     input.setAttribute("aria-expanded", "false");
     input.removeAttribute("aria-activedescendant");
   }
-  function token() {
-    const cursor = input.selectionStart ?? input.value.length;
-    const start = input.value.lastIndexOf(",", cursor - 1) + 1;
-    const end = input.value.indexOf(",", cursor);
-    return {
-      start,
-      end: end < 0 ? input.value.length : end,
-      value: input.value
-        .slice(start, end < 0 ? input.value.length : end)
-        .trim(),
-    };
-  }
   function choose(index) {
     const item = items[index];
     if (!item) return;
-    const part = token(),
-      prefix = part.value.startsWith("-") ? "-" : "";
-    const before = input.value.slice(0, part.start);
-    const after = input.value.slice(part.end);
-    const replacement = `${before ? " " : ""}${prefix}${item.name}`;
-    input.value = before + replacement + (after || ", ");
-    const cursor = before.length + replacement.length + (after ? 0 : 2);
+    const prefix = input.value.trim().startsWith("-") ? "-" : "";
+    input.value = prefix + (item.displayName || item.name);
+    input.dataset.selectedTag = prefix + item.name;
     close();
     input.focus();
-    input.setSelectionRange(cursor, cursor);
-    input.dispatchEvent(new Event("tag-selected"));
+    input.setSelectionRange(input.value.length, input.value.length);
   }
   function highlight(index) {
     selected = index;
@@ -58,7 +41,7 @@ export function attachAutocomplete(input, list, options = {}) {
   }
   function refresh() {
     close();
-    const query = token().value.replace(/^-/, "");
+    const query = input.value.trim().replace(/^-/, "");
     if (query.length < 2) return;
     const version = revision;
     timer = setTimeout(async () => {
@@ -105,7 +88,10 @@ export function attachAutocomplete(input, list, options = {}) {
       input.setAttribute("aria-expanded", String(!!items.length));
     }, 200);
   }
-  input.addEventListener("input", refresh);
+  input.addEventListener("input", () => {
+    delete input.dataset.selectedTag;
+    refresh();
+  });
   input.addEventListener("click", refresh);
   input.addEventListener("blur", close);
   input.form?.addEventListener("reset", close);

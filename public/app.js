@@ -222,7 +222,6 @@ $("#run-search").addEventListener("click", () => {
     $("#filter-minLikes").reportValidity();
     return;
   }
-  addInputTags();
   for (const key of Object.keys(filters))
     filters[key] = $(`#filter-${key}`).value;
   if (!$("#rating-enabled").checked) filters.minLikes = "";
@@ -247,10 +246,25 @@ function paintPostTags() {
     );
   }
 }
+function normalizeTagInput(input, event) {
+  if (event.isComposing) return;
+  const start = input.selectionStart, end = input.selectionEnd;
+  const value = input.value.replace(/[\s,]/g, "_");
+  if (value === input.value) return;
+  input.value = value;
+  if (start !== null && end !== null) input.setSelectionRange(start, end);
+}
+for (const input of [elements.input, $("#supertag-tags")]) {
+  input.addEventListener("input", (event) => normalizeTagInput(input, event));
+  input.addEventListener("compositionend", (event) => {
+    normalizeTagInput(input, event);
+    input.dispatchEvent(new Event("input"));
+  });
+}
 attachAutocomplete(elements.input, elements.suggestions, {
   localSuggestions: (query) =>
     state.supertags
-      .filter((item) => item.name.toLowerCase().includes(query.toLowerCase()))
+      .filter((item) => item.name.toLowerCase().replace(/\s/g, "_").includes(query.toLowerCase()))
       .map((item) => ({
         name: superToken(item.id),
         displayName: item.name,
@@ -259,7 +273,8 @@ attachAutocomplete(elements.input, elements.suggestions, {
 });
 const builder = { tags: [], editingId: null };
 const superSuggestions = $("#super-suggestions");
-attachAutocomplete($("#supertag-tags"), superSuggestions);
+const builderInput = $("#supertag-tags");
+attachAutocomplete(builderInput, superSuggestions);
 function renderBuilderTags() {
   $("#supertag-selected").innerHTML = builder.tags
     .map(
@@ -270,7 +285,7 @@ function renderBuilderTags() {
 }
 function addBuilderTags() {
   const negative = $("#supertag-mode").getAttribute("aria-pressed") === "true";
-  const incoming = splitTags($("#supertag-tags").value).map((tag) =>
+  const incoming = normalizeTags([builderInput.dataset.selectedTag || builderInput.value]).map((tag) =>
     negative ? `-${tag.replace(/^-/, "")}` : tag,
   );
   builder.tags = normalizeTags([...builder.tags, ...incoming]);
@@ -291,7 +306,6 @@ tagGestures(
     renderBuilderTags();
   },
 );
-$("#supertag-tags").addEventListener("tag-selected", addBuilderTags);
 $("#supertag-add-tag").addEventListener("click", addBuilderTags);
 $("#supertag-tags").addEventListener("keydown", (event) => {
   if (
@@ -301,7 +315,6 @@ $("#supertag-tags").addEventListener("keydown", (event) => {
     return;
   if (event.key === "Enter") {
     event.preventDefault();
-    addBuilderTags();
   }
 });
 $("#supertag-mode").addEventListener("click", () => {
@@ -348,7 +361,7 @@ function renderActiveTags() {
     .join("");
 }
 function addInputTags() {
-  const incoming = splitTags(elements.input.value).map((tag) =>
+  const incoming = normalizeTags([elements.input.dataset.selectedTag || elements.input.value]).map((tag) =>
     $("#tag-mode").getAttribute("aria-pressed") === "true"
       ? "-" + tag.replace(/^-/, "")
       : tag,
@@ -380,7 +393,9 @@ $("#tag-mode").addEventListener("click", () => {
   $("#tag-mode").setAttribute("aria-pressed", String(negative));
   syncSearchIcons();
 });
-elements.input.addEventListener("tag-selected", addInputTags);
+elements.input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.isComposing) event.preventDefault();
+});
 tagGestures(elements.results, "[data-tag]", (button, exclude) =>
   setTags(
     toggleTag(splitTags(), decodeURIComponent(button.dataset.tag), exclude),
@@ -518,7 +533,6 @@ elements.settingsSupertags.addEventListener("click", (event) => {
 });
 $("#supertag-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  addBuilderTags();
   const name = $("#supertag-name").value.trim(),
     description = $("#supertag-description").value.trim();
   if (!name || !builder.tags.length) {
